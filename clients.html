@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Management — S.K. Accounts</title>
+    <meta name="description" content="Manage your clients, add new ones or remove existing ones.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+</head>
+
+<body>
+
+    <div class="sb-overlay" id="sbOverlay"></div>
+    <div class="toast-stack" id="toastStack"></div>
+
+    <div class="app-shell">
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sb-brand">
+                <div class="sb-logo">SK</div>
+                <span class="sb-name">S.K. Accounts</span>
+            </div>
+            <div class="sb-nav">
+                <div class="sb-section-label">Workspace</div>
+                <nav>
+                    <a href="index.html">
+                        <i data-lucide="package"></i>
+                        Inventory Entry
+                    </a>
+                    <a href="sales_inventory.html">
+                        <i data-lucide="truck"></i>
+                        Driver Details
+                    </a>
+                    <a href="clients.html" class="active">
+                        <i data-lucide="users"></i>
+                        Clients
+                    </a>
+                    <a href="materials.html">
+                        <i data-lucide="box"></i>
+                        Materials
+                    </a>
+                </nav>
+            </div>
+            <div class="sb-footer">
+                <p class="sb-footer-text">S.K. Accounts · v2.0</p>
+            </div>
+        </aside>
+
+        <!-- Main Area -->
+        <div class="main-area">
+
+            <!-- Topbar -->
+            <div class="topbar">
+                <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+                    <i data-lucide="menu"></i>
+                </button>
+                <span class="topbar-crumb">S.K. Accounts</span>
+                <span class="topbar-sep">/</span>
+                <span class="topbar-page">Client Management</span>
+                <div class="topbar-gap"></div>
+                <span class="topbar-date" id="topbarDate"></span>
+            </div>
+
+            <!-- Page content -->
+            <div class="page-content">
+
+                <div class="page-header">
+                    <h1>Client Management</h1>
+                    <p>Add, view and remove clients from your database</p>
+                </div>
+
+                <!-- Add Client Form -->
+                <p class="section-label">Add Client</p>
+                <div class="card">
+                    <div class="card-body">
+                        <form id="addClientForm" class="form-grid">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="clientName">Client Name</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="clientName" placeholder="Enter client name" required>
+                                    <button type="submit" class="btn-primary" style="height: 40px;">
+                                        <i data-lucide="user-plus"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Clients List -->
+                <p class="section-label">Clients List</p>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">Registered Clients</span>
+                        <span class="entries-info" id="clientCount">0 clients</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="clientsTable">
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientsTableBody">
+                                <!-- JS populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        lucide.createIcons();
+
+        // Topbar date
+        (function updateDate() {
+            document.getElementById('topbarDate').textContent =
+                new Date().toLocaleDateString('en-IN', {
+                    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+                });
+            setTimeout(updateDate, 30000);
+        })();
+
+        // Mobile Sidebar
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sbOverlay');
+        const menuBtn = document.getElementById('mobileMenuBtn');
+
+        function openSidebar() { sidebar.classList.add('sb-open'); overlay.classList.add('active'); }
+        function closeSidebar() { sidebar.classList.remove('sb-open'); overlay.classList.remove('active'); }
+
+        menuBtn.addEventListener('click', openSidebar);
+        overlay.addEventListener('click', closeSidebar);
+
+        // Toast System (Fallback if script.js not loaded or different)
+        function notify(msg, type = 'success') {
+            if (typeof showToast === 'function') {
+                showToast(msg, type);
+            } else {
+                alert(msg);
+            }
+        }
+
+        // Render Clients
+        function renderClients() {
+            const clients = getStoredClients();
+            const tbody = document.getElementById('clientsTableBody');
+            const countLabel = document.getElementById('clientCount');
+
+            tbody.innerHTML = '';
+            countLabel.textContent = `${clients.length} client${clients.length !== 1 ? 's' : ''}`;
+
+            if (clients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px; color: var(--t4);">No clients found.</td></tr>';
+                return;
+            }
+
+            clients.forEach(name => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="td-name">${name}</td>
+                    <td style="text-align: right;">
+                        <button class="btn-outline btn-danger-text remove-client-btn" data-name="${name}">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons({ nodes: [tbody] });
+
+            // Attach remove listeners
+            document.querySelectorAll('.remove-client-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const name = btn.getAttribute('data-name');
+                    if (confirm(`Are you sure you want to remove client "${name}"?`)) {
+                        removeStoredClient(name);
+                        renderClients();
+                        notify(`Client "${name}" removed.`, 'info');
+                    }
+                });
+            });
+        }
+
+        // Handle Add Client
+        document.getElementById('addClientForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('clientName');
+            const name = input.value.trim();
+
+            if (!name) return;
+
+            const existing = getStoredClients();
+            if (existing.includes(name)) {
+                notify('Client already exists.', 'error');
+                return;
+            }
+
+            saveCustomNames(name);
+            input.value = '';
+            renderClients();
+            notify(`Client "${name}" added successfully.`);
+        });
+
+        // Initialize
+        renderClients();
+    </script>
+</body>
+
+</html>
